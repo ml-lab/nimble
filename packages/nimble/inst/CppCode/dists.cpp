@@ -788,7 +788,7 @@ double dmvt_chol(double* x, double* mean, double* chol, double df, int n, double
   for(i = 0; i < n; i++)
     tmp += x[i] * x[i];
   
-  dens += -0.5 * (d + n) * log(1 + tmp / d);
+  dens += -0.5 * (df + n) * log(1 + tmp / df);
   
   return give_log ? dens : exp(dens);
 }
