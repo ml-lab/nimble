@@ -90,7 +90,7 @@ eigenizeCalls <- c( ## component-wise unarys valid for either Eigen array or mat
                    )
 
 eigenizeCallsBeforeRecursing <- c( ## These cannot be calls that trigger aliasRisk.
-    makeCallList(c('size','nimArr_dmnorm_chol', 'nimArr_dwish_chol', 'nimArr_ddirch'), 'eigenize_doNotRecurse'),
+    makeCallList(c('size','nimArr_dmnorm_chol', 'nimArr_dmvt_chol','nimArr_dwish_chol', 'nimArr_ddirch'), 'eigenize_doNotRecurse'),
     list(nfVar = 'eigenize_nfVar',
          chainedCall = 'eigenize_chainedCall',
          '<-' = 'eigenize_assign_before_recurse',

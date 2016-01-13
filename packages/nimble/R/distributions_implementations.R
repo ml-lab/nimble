@@ -245,7 +245,7 @@ dmvt_chol <- function(x, mean, cholesky, df, prec_param = TRUE, log = FALSE) {
   # cholesky should be upper triangular
   # FIXME: allow cholesky to be lower tri
   .Call('C_dmvt_chol', as.double(x), as.double(mean), as.double(cholesky),
-        as.integer(df), as.double(prec_param), as.logical(log))
+        as.double(df), as.double(prec_param), as.logical(log))
 }
 
 rmvt_chol <- function(n = 1, mean, cholesky, df, prec_param = TRUE) {
@@ -253,7 +253,7 @@ rmvt_chol <- function(n = 1, mean, cholesky, df, prec_param = TRUE) {
   ## FIXME: allow cholesky to be lower tri
   if(n != 1) warning('rmnorm_chol only handles n = 1 at the moment')
   .Call('C_rmvt_chol', as.double(mean), as.double(cholesky),
-        as.integer(df), as.double(prec_param))
+        as.double(df), as.double(prec_param))
 }
 
 #' Interval calculations 
