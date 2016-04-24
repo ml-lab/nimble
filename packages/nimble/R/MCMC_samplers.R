@@ -104,7 +104,8 @@ sampler_RW <- nimbleFunction(
             if(propValue > range[2]) propValue <- 2*range[2] - propValue    }
         model[[target]] <<- propValue
         logMHR <- calculateDiff(model, calcNodes)
-        if(logScale)     logMHR <- logMHR + log(propValue) - log(currentValue)
+        ##if(logScale)     logMHR <- logMHR + log(propValue) - log(currentValue)
+        if(logScale)     logMHR <- logMHR + log(propValue) - log(mvSaved[target, 1][1])
         jump <- decide(logMHR)
         if(jump) nimCopy(from = model, to = mvSaved, row = 1, nodes = calcNodes, logProb = TRUE)
         else     nimCopy(from = mvSaved, to = model, row = 1, nodes = calcNodes, logProb = TRUE)
