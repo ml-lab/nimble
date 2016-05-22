@@ -178,7 +178,8 @@ cppProjectClass <- setRefClass('cppProjectClass',
                                                         'Utils.cpp', 
                                                         'NamedObjects.cpp', 
                                                         'ModelClassUtils.cpp', 
-                                                        'accessorClasses.cpp'
+                                                        'accessorClasses.cpp',
+                                                        'dll.cpp'
                                                         )
                                        if(nimbleOptions()$includeCPPdists) cppPermList <- c(cppPermList, 'dists.cpp', 'nimDists.cpp')
 
@@ -214,7 +215,8 @@ cppProjectClass <- setRefClass('cppProjectClass',
                                                          class = c("SHLIBCreationError", "ShellError", "simpleError", "error", "condition")))
                                    },
                                    loadSO = function(name) {
-                                       dll <<- dyn.load(getSOName(name, dirName), local = TRUE) 
+                                       dll <<- dyn.load(getSOName(name, dirName), local = TRUE)
+                                       .Call(dll$R_setDllObject, dll, getNativeSymbolInfo("UnloadNimbleDll_Finalizer", PACKAGE = "nimble")$address)
                                    },
                                    unloadSO = function(name) {
 				       if(!is.null(dll)) {
