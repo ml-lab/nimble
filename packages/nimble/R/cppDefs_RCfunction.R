@@ -12,13 +12,15 @@ RCfunctionDef <- setRefClass('RCfunctionDef',
                                                      nimbleIncludeFile("NimArr.h"),
                                                      "<Rinternals.h>",
                                                      nimbleIncludeFile("accessorClasses.h"),
-                                                     nimbleIncludeFile("nimDists.h"))
+                                                     nimbleIncludeFile("nimDists.h"),
+                                                     nimbleIncludeFile("dll.h"))
                                      CPPincludes <<- c(CPPincludes,
                                                        '<Rmath.h>',
                                                        '<math.h>',
                                                        nimbleIncludeFile("EigenTypedefs.h"),
                                                        nimbleIncludeFile("Utils.h"),
-                                                       nimbleIncludeFile("accessorClasses.h"))
+                                                       nimbleIncludeFile("accessorClasses.h"),
+                                                       nimbleIncludeFile("dll.h"))
                                      CPPusings <<- c(CPPusings) 
                                      callSuper(...)
                                  },

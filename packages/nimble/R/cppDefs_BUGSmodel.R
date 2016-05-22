@@ -12,7 +12,8 @@ cppBUGSmodelClass <- setRefClass('cppBUGSmodelClass',
                                      	nodeFuns <<- list()
                                      	CmodelValuesClassName <<- character()
                                          Hincludes <<- c(Hincludes, nimbleIncludeFile("NimArr.h"),
-                                                                    nimbleIncludeFile("ModelClassUtils.h"))
+                                                                    nimbleIncludeFile("ModelClassUtils.h"),
+                                                                    nimbleIncludeFile("dll.h"))
                                          callSuper(...)
                                          CmodelValuesClassName <<- Rname2CppName(modelDef$modelValuesClassName) 
                                          inheritance <<- inheritance[inheritance != 'NamedObjects']
