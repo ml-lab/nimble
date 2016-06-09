@@ -202,7 +202,7 @@ cppPermList = c()
                                            if(isWindows) {
                                                stop('use of DLL manager system is not set up for Windows yet')
                                            }
-                                           includes <- c(includes, sprintf("%s/%s", normalizePath(NimbleCodeDir, winslash = '/'), 'dll.cpp'))
+                                           includes <- c(includes, sprintf("%s/%s", normalizePath(NimbleCodeDir(), winslash = '/'), 'dll.cpp'))
                                        }
                                        
 				       if(!file.exists(file.path(dirName, sprintf("Makevars%s", if(isWindows) ".win" else ""))) && NeedMakevarsFile) # should reverse the order here in the long term.

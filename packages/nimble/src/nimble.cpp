@@ -11,6 +11,39 @@
 #define CFUN(name, numArgs) \
   {"R_"#name, (DL_FUNC) &name, numArgs}
 
+#include <unordered_map>
+std::unordered_map<SEXP, R_CFinalizer_t> RnimblePtrs_Pkg; // Here the finalizer will be the RNimble_PtrFinalizer in a nimble-generated dll
+SEXP get_RnimblePtrs_Pkg() {
+  return(R_MakeExternalPtr(&RnimblePtrs_Pkg, R_NilValue, R_NilValue));
+}
+
+// can't make an external function ptr, but we can pass the address from getNativeSymbolInfo 
+void
+RNimble_PtrFinalizer_Pkg(SEXP obj)
+{
+    R_CFinalizer_t cfun;
+    cfun = RnimblePtrs_Pkg[obj];
+    printf("In RNimble_PtrFinalizer_Pkg with finalizer %p for object %p\n", cfun, obj);
+    if(cfun) {
+      printf("Invoking DLL finalizer\n");
+      cfun(obj); // invoke the finalizer
+    } else {
+      printf("Not invoking DLL finalizer because the pointer was already cleared\n");
+    }
+    R_ClearExternalPtr(obj);
+    RnimblePtrs_Pkg.erase(obj);
+    printf("number of remaining RnimblePtrs_Pkg pointers = %d\n", (int) RnimblePtrs_Pkg.size());
+    // Below concepts go in DLL RNimble_PtrFinalizer
+    // if(RnimblePtrs.empty() && DllPtr) {
+    //     // arrange to dyn.unload()
+    //     printf("no more nimble pointers in the DLL %p\n", DllPtr);
+    //     Rf_PrintValue(DllPtr);
+    //     // Interesting to see if we dyn.unload() from a routine in that DLL what happens.
+    //     UnloadNimbleDLL(DllPtr);
+    // }
+}
+
+
 R_CallMethodDef CallEntries[] = {
  {"getModelValuesPtrFromModel", (DL_FUNC) &getModelValuesPtrFromModel, 1},
 // FUN(setNodeModelPtr, 3),

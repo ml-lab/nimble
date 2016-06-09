@@ -22,9 +22,20 @@ static const char *dllPath = NULL;
 
 R_CFinalizer_t UnloadNimbleDll_Finalizer_ref = NULL;
 
+R_CFinalizer_t RNimble_PtrFinalizer_Pkg;
+void set_RNimble_PtrFinalizer_Pkg(SEXP ptr) {
+  RNimble_PtrFinalizer_Pkg = static_cast<R_CFinalizer_t>(R_ExternalPtrAddr(ptr) );
+}
+
+std::unordered_map<SEXP, R_CFinalizer_t> *RnimblePtrs_Pkg_ptr;
+void set_RnimblePtrs_Pkg_ptr(SEXP ptr) {
+  RnimblePtrs_Pkg_ptr = static_cast<std::unordered_map<SEXP, R_CFinalizer_t> *>(R_ExternalPtrAddr(ptr) );
+}
+
 /* This is called after we compile the model-specific DLL and we then set the DLLInfo object
    so it knows "who it is".
 */
+// Not using this yet.
 extern "C"
 SEXP 
 R_setDllObject(SEXP ptr, SEXP finalizerRef)
@@ -53,7 +64,8 @@ RegisterNimblePointer(SEXP ptr, R_CFinalizer_t finalizer)
         printf("first object\n");
 #endif
     RnimblePtrs[ptr] = finalizer;
-    R_RegisterCFinalizerEx(ptr, RNimble_PtrFinalizer, TRUE);
+    (*RnimblePtrs_Pkg_ptr)[ptr] = RNimble_PtrFinalizer;
+    R_RegisterCFinalizerEx(ptr, RNimble_PtrFinalizer_Pkg, TRUE);
 }
 
 extern "C" 
@@ -70,7 +82,12 @@ ClearAllPointers()
     printf("Calling finalizer %p for object %p\n", cfun, obj);
     if(cfun)
       cfun(obj); // invoke the finalizer
-    R_ClearExternalPtr(obj);    
+    R_ClearExternalPtr(obj); // this does not seem to clear the finalizer.  it seems to be called again when the R object is really destroyed
+    // R source code in memory.c shows why
+    // R_RegisterFinalizerEx calls R_RegisterWeakRef which calls R_MakeWeakRef which calls NewWeakRef
+    // There is an internal global object R_weak_refs that is a vector of every WeakRef and there is no apparent system for removing entries
+    // The time entries are cleared is in RunFinalizers
+    // but anyway even if we wanted to imitate that, there is no access to R_weak_ref provided by Rinternals.h or Rdefines.h as far as I can tell
   }
   RnimblePtrs.clear();
 }
@@ -108,15 +125,18 @@ UnloadNimbleDLL(SEXP dllInfo)
     }
 }
 
-
 void
 RNimble_PtrFinalizer(SEXP obj)
 {
     R_CFinalizer_t cfun;
     cfun = RnimblePtrs[obj];
     printf("Calling finalizer %p for object %p\n", cfun, obj);
-    if(cfun)
+    if(cfun) {
+      printf("Invoking actual finalizer\n");
       cfun(obj); // invoke the finalizer
+    } else {
+      printf("Not invoking finalizer because the pointer was already cleared\n");
+    }
     R_ClearExternalPtr(obj);
     RnimblePtrs.erase(obj);
     printf("number of remaining nimble pointers = %d\n", (int) RnimblePtrs.size());
@@ -128,7 +148,6 @@ RNimble_PtrFinalizer(SEXP obj)
         UnloadNimbleDLL(DllPtr);
     }
 }
-
 
 #ifndef IN_NIMBLE_PKG
 #endif
