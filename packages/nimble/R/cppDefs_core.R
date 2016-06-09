@@ -132,11 +132,19 @@ cppClassDef <- setRefClass('cppClassDef',
                                                            paste0('std::cout<< \"In generator for ', name, '. Created at pointer \" << R_ExternalPtrAddr(Sans) << \"\\n\";')
                                                        else character(0)
                                    if(is.null(finalizer)) finalizer <- paste0(name,'_Finalizer')
-                                   codeLines <- substitute({
-                                       R_RegisterCFinalizerEx(Sans, cppReference(FINALIZER), FALSE) ## last argument is whether to call finalizer upon R exit.  If TRUE we can generate segfaults if the library has been dyn.unloaded, unfortunately
-                                       UNPROTECT(1)
-                                       return(Sans)
-                                   }, list(TYPE = as.name(name), FINALIZER = as.name(finalizer)))
+                                   if(nimbleOptions()$useDllManager) {
+                                       codeLines <- substitute({
+                                           RegisterNimblePointer(Sans, cppReference(FINALIZER)) 
+                                           UNPROTECT(1)
+                                           return(Sans)
+                                       }, list(TYPE = as.name(name), FINALIZER = as.name(finalizer)))
+                                   } else {
+                                       codeLines <- substitute({
+                                           R_RegisterCFinalizerEx(Sans, cppReference(FINALIZER), FALSE) ## last argument is whether to call finalizer upon R exit.  If TRUE we can generate segfaults if the library has been dyn.unloaded, unfortunately
+                                           UNPROTECT(1)
+                                           return(Sans)
+                                       }, list(TYPE = as.name(name), FINALIZER = as.name(finalizer)))
+                                   }
                                    allCode <- putCodeLinesInBrackets(list(newCodeLine, cppLiteral(notificationLine), codeLines))
                                    SEXPgeneratorFun <<- cppFunctionDef(name = paste0('new_',name),
                                                                        args = list(),

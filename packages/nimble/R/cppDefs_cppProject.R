@@ -196,7 +196,14 @@ cppProjectClass <- setRefClass('cppProjectClass',
                                        
                                        mainfiles <- paste(basename(file.path(dirName, paste0(names,'.cpp'))), collapse = ' ')
 
-                                      
+                                       if(nimbleOptions()$useDllManager) {
+                                           ## not set up for windows yet
+                                           if(isWindows) {
+                                               stop('use of DLL manager system is not set up for Windows yet')
+                                           }
+                                           includes <- c(includes, sprintf("%s/%s", normalizePath(NimbleCodeDir, winslash = '/'), 'dll.cpp'))
+                                       }
+                                       
 				       if(!file.exists(file.path(dirName, sprintf("Makevars%s", if(isWindows) ".win" else ""))) && NeedMakevarsFile) # should reverse the order here in the long term.
 				           createMakevars(.useLib = .useLib, dir = dirName)
                                        
@@ -216,7 +223,8 @@ cppProjectClass <- setRefClass('cppProjectClass',
                                    },
                                    loadSO = function(name) {
                                        dll <<- dyn.load(getSOName(name, dirName), local = TRUE)
-                                       .Call(dll$R_setDllObject, dll, getNativeSymbolInfo("UnloadNimbleDll_Finalizer", PACKAGE = "nimble")$address)
+                                       ## Not ready for this yet
+                                       ## .Call(dll$R_setDllObject, dll, getNativeSymbolInfo("UnloadNimbleDll_Finalizer", PACKAGE = "nimble")$address)
                                    },
                                    unloadSO = function(name) {
 				       if(!is.null(dll)) {

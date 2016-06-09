@@ -31,6 +31,9 @@ nimbleUserNamespace <- as.environment(list())
         ## uses the 'new' system for dynamically generated conjugate samplers (DT, March 2016),
         ## rather than the older 'static' system.
         useDynamicConjugacy = TRUE,
+
+        ## manage objects instantiated from each DLL using system in dll.cpp
+        useDllManager = TRUE,
         
         ## default settings for MCMC samplers
         ## (formerly controlDefaultList appearing in MCMCspec.R)
