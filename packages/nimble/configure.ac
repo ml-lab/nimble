@@ -113,7 +113,7 @@ if test "${ENABLE_FLIBS}" = "TRUE"; then
   echo "including FLIBS in Makevars as expected for CRAN"
   FLIBS="\$(FLIBS)"
 else
-  echo "not including FLIBS in Makevars.  use --configure-args=\'--enable-flibs=true\' when testing for CRAN."
+  echo "not including FLIBS in Makevars.  use --configure-args='--enable-flibs=true' when testing for CRAN."
   FLIBS=""
 fi
 AC_SUBST(FLIBS)
@@ -135,8 +135,8 @@ AC_SUBST(USE_REGISTRATION)
 
 AC_OUTPUT(inst/make/Makevars inst/make/Makevars_lib R/config.R src/Makevars)
 
-
-
+# the compilation in src will happen automatically as part of R's installation process
+# only the compilation in  CppCode needs to be invoked by make here
 if test "${ENABLE_LIB}" != "false" ; then
  echo "Building libnimble"
  (cd inst/CppCode ; ${MAKE} )
@@ -145,7 +145,11 @@ if test "${ENABLE_LIB}" != "false" ; then
 #    mkdir -p $R_PACKAGE_DIR/libs/
 # fi
  #cp inst/CppCode/libnimble.dylib $R_PACKAGE_DIR/libs/libnimble.dylib 
-else 
+else
+  ## content of these files will be compiled into both nimble.so and either libnimble.a or libnimble.dylib
+  ## these files could be organized more cleanly 
   cp inst/CppCode/*.cpp src
+  rm src/dll.cpp
+  rm src/dll_shared.cpp
   (cd inst/CppCode ; ${MAKE} libnimble.a)
 fi

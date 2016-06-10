@@ -34,6 +34,8 @@ nimbleUserNamespace <- as.environment(list())
 
         ## manage objects instantiated from each DLL using system in dll.cpp
         useDllManager = TRUE,
+
+        firstCompilation = TRUE,
         
         ## default settings for MCMC samplers
         ## (formerly controlDefaultList appearing in MCMCspec.R)

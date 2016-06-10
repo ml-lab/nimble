@@ -174,18 +174,27 @@ cppProjectClass <- setRefClass('cppProjectClass',
                                        cppFile$writeFile(con = con, dir = dirName)
                                    },
                                    compileFile = function(names, .useLib = UseLibraryMakevars) {
-                                       cppPermList <- c('RcppUtils.cpp', 
-                                                        'Utils.cpp', 
-                                                        'NamedObjects.cpp', 
-                                                        'ModelClassUtils.cpp', 
-                                                        'accessorClasses.cpp',
-                                                        'dll.cpp'
-                                                        )
-                                       if(nimbleOptions()$includeCPPdists)
-                                          cppPermList <- c(cppPermList, 'dists.cpp', 'nimDists.cpp')
+                                       ## not necessary for new static linking system.
+                                       ## cppPermList <- c('RcppUtils.cpp', 
+                                       ##                  'Utils.cpp', 
+                                       ##                  'NamedObjects.cpp', 
+                                       ##                  'ModelClassUtils.cpp', 
+                                       ##                  'accessorClasses.cpp',
+                                       ##                  'dll.cpp'
+                                       ##                  )
+                                       ## if(nimbleOptions()$includeCPPdists)
+                                       ##    cppPermList <- c(cppPermList, 'dists.cpp', 'nimDists.cpp')
 
+                                       cppPermList = c()
+                                       
                                        isWindows = (.Platform$OS.type == "windows")
-cppPermList = c()                                       
+
+                                       if(!.useLib & nimbleOptions()$firstCompilation) {
+                                           createSessionSpecificDLL()
+                                           nimbleOptions(firstCompilation=FALSE)
+                                           browser()
+                                       }
+                                       
                                        includes <- if(!.useLib) {
 	                                              if(isWindows) {
                                                          shortDirname = dirname(shortPathName(sprintf("%s/%s", NimbleCodeDir(), cppPermList[1])))
@@ -202,14 +211,14 @@ cppPermList = c()
                                            if(isWindows) {
                                                stop('use of DLL manager system is not set up for Windows yet')
                                            }
-                                           includes <- c(includes, sprintf("%s/%s", normalizePath(NimbleCodeDir(), winslash = '/'), 'dll.cpp'))
+                                           ## Here I'm adding in the dll_shared.so, but having this included causes Makevars to not be used, or at least -lnimble not included
+                                           includes <- c(includes, sprintf("%s/%s", normalizePath(file.path(tempdir(), "dll_shared"), winslash = '/'), 'dll_shared.so'))
                                        }
                                        
 				       if(!file.exists(file.path(dirName, sprintf("Makevars%s", if(isWindows) ".win" else ""))) && NeedMakevarsFile) # should reverse the order here in the long term.
 				           createMakevars(.useLib = .useLib, dir = dirName)
                                        
                                        outputSOfile <<- file.path(dirName, paste0(names[1], format(Sys.time(), "%m_%d_%H_%M_%S"), .Platform$dynlib.ext))
-
 
                                        SHLIBcmd <- paste(file.path(R.home('bin'), 'R'), 'CMD SHLIB', paste(c(mainfiles, includes), collapse = ' '), '-o', basename(outputSOfile))
                                        
@@ -243,3 +252,22 @@ cppPermList = c()
                                    })
                                )
 
+
+createSessionSpecificDLL <- function() {
+    ## This compiles dll_shared.cpp into dll_shared.so in tempdir()/dll_shared
+    fromFile <- system.file('CppCode','dll_shared.cpp',package = 'nimble')
+    toDir <- file.path(tempdir(), 'dll_shared')
+    if(!dir.exists(toDir)) dir.create(toDir)
+    file.copy(fromFile, toDir)
+    isWindows <- FALSE
+    if(!file.exists(file.path(toDir, sprintf("Makevars%s", if(isWindows) ".win" else ""))) && NeedMakevarsFile) 
+        createMakevars(.useLib = UseLibraryMakevars, dir = toDir)
+    curdir <- getwd()
+    on.exit(setwd(curdir))
+    setwd(toDir)
+    dllFile <- file.path(toDir, 'dll_shared.cpp')
+    SHLIBcmd <- paste(file.path(R.home('bin'), 'R'), 'CMD SHLIB', dllFile)
+    system(SHLIBcmd)
+    dyn.load( paste0('dll_shared', .Platform$dynlib.ext))
+    NULL
+}

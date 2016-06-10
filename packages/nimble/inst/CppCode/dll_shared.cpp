@@ -1,5 +1,4 @@
 #include <unordered_map>
-#include "nimble/dll.h"
 #include "nimble/dll_shared.h"
 
 /*
@@ -14,18 +13,39 @@
   This is a call to newNumberedObjects()
 */
 
-void callhw() {
-  // this exists as a test of called something in dll_shared
-  hw()
+
+/*
+Update to this idea:
+dll.cpp will be compiled into each on-the-fly dll
+dll_shared.cpp will be compiled once for each R/nimble session, upon first use of compileNimble.
+
+dll_shared.cpp will contain "global" finalizer registry system for objects *all* dlls throughout a session.
+dll.cpp will contain a registry system just for objects from itself
+
+The two registries are called hierarchically.  The purpose of the dll_shared registry is so that even if a particular cppProject dll is dyn.unloaded(), there is a still a valid finalizer function.
+
+There is apparently *no* way to clear a registered finalizer except via R's garbage collection mechanism, and that is not proving to be reliable for our needs.
+*/
+
+void hw() {
+  // this exists to allow a test of what is loaded
+  printf("Hello world from dll.cpp\n");
 }
 
-void RNimble_PtrFinalizer(SEXP obj);
+void RNimble_PtrFinalizer_shared(SEXP obj);
 
-std::unordered_map<SEXP, R_CFinalizer_t> RnimblePtrs;
+std::unordered_map<SEXP, R_CFinalizer_t> RnimblePtrs_shared;
 
-static SEXP DllPtr = NULL;
+//static SEXP DllPtr = NULL;
 //static const char *dllPath = NULL;
 //R_CFinalizer_t UnloadNimbleDll_Finalizer_ref = NULL;
+
+//R_CFinalizer_t RNimble_PtrFinalizer_Pkg;
+// // whoops, this cast isn't allowed.  
+// void set_RNimble_PtrFinalizer_Pkg(SEXP ptr) {
+//   RNimble_PtrFinalizer_Pkg = static_cast<R_CFinalizer_t>(R_ExternalPtrAddr(ptr) );
+// }
+
 
 /* This is called after we compile the model-specific DLL and we then set the DLLInfo object
    so it knows "who it is".
@@ -50,44 +70,17 @@ static SEXP DllPtr = NULL;
   and need to ensure it is garbage collected.
  */
 void
-RegisterNimblePointer(SEXP ptr, R_CFinalizer_t finalizer)
+RegisterNimblePointer_shared(SEXP ptr, R_CFinalizer_t finalizer)
 {
-    printf("RegisterNimblePointer:  %p, finalizer = %p.  Total number of nimble objects = %d in DLL %p\n", ptr, finalizer, (int) (RnimblePtrs.size() + 1), DllPtr);
+  printf("RegisterNimblePointer_shared:  %p, finalizer = %p.  Total number of nimble objects = %d.\n", ptr, finalizer, (int) (RnimblePtrs_shared.size() + 1));
 #if 1   // for debugging
-    size_t n = RnimblePtrs.size();
+    size_t n = RnimblePtrs_shared.size();
     if(n == 0)
         printf("first object\n");
 #endif
-    RnimblePtrs[ptr] = finalizer;
-    RegisterNimblePointer_shared(ptr, RNimble_PtrFinalizer);
-    //R_RegisterCFinalizerEx(ptr, RNimble_PtrFinalizer, TRUE); // happens in RegisterNimblePointer_shared
+    RnimblePtrs_shared[ptr] = finalizer;
+    R_RegisterCFinalizerEx(ptr, RNimble_PtrFinalizer_shared, TRUE);
 }
-
-extern "C" 
-void
-ClearAllPointers()
-{
-  printf("ClearAllPointers\n");
-  std::unordered_map<SEXP, R_CFinalizer_t>::iterator iPointers;
-  R_CFinalizer_t cfun;
-  SEXP obj;
-  for(iPointers = RnimblePtrs.begin(); iPointers != RnimblePtrs.end(); iPointers++) {
-    obj = iPointers->first;
-    cfun = iPointers->second;
-    printf("Calling finalizer %p for object %p\n", cfun, obj);
-    if(cfun)
-      cfun(obj); // invoke the finalizer
-    Clear_PtrFinalizer_shared(obj);
-    R_ClearExternalPtr(obj); // this does not seem to clear the finalizer.  it seems to be called again when the R object is really destroyed
-    // R source code in memory.c shows why
-    // R_RegisterFinalizerEx calls R_RegisterWeakRef which calls R_MakeWeakRef which calls NewWeakRef
-    // There is an internal global object R_weak_refs that is a vector of every WeakRef and there is no apparent system for removing entries
-    // The time entries are cleared is in RunFinalizers
-    // but anyway even if we wanted to imitate that, there is no access to R_weak_ref provided by Rinternals.h or Rdefines.h as far as I can tell
-  }
-  RnimblePtrs.clear();
-}
-
 
 /* Arrange to call dyn.unload(path.to.so) */
 // extern "C" 
@@ -103,6 +96,7 @@ ClearAllPointers()
 //         DllPtr = NULL;
 //         Rf_eval(e, R_GlobalEnv);
 //         UNPROTECT(1);
+
 // }
 
 /* A finalizer that creates another finalizer.
@@ -120,27 +114,35 @@ ClearAllPointers()
 //     }
 // }
 
+void showExtPtrAddress(SEXP obj) {
+  printf("pointer %p pointer to address %p\n", obj, R_ExternalPtrAddr(obj));
+}
+
+void Clear_PtrFinalizer_shared(SEXP obj) {
+  RnimblePtrs_shared.erase(obj);
+}
+
 void
-RNimble_PtrFinalizer(SEXP obj)
+RNimble_PtrFinalizer_shared(SEXP obj)
 {
     R_CFinalizer_t cfun;
-    cfun = RnimblePtrs[obj];
-    printf("In dll finalizer, checking for actual finalizer %p for object %p\n", cfun, obj);
+    cfun = RnimblePtrs_shared[obj];
+    printf("From shared finalizer, checking for single dll finalizer %p for object %p\n", cfun, obj);
     if(cfun) {
-      printf("Invoking actual finalizer\n");
+      printf("Invoking single dll finalizer\n");
       cfun(obj); // invoke the finalizer
     } else {
-      printf("Not invoking actual finalizer because the pointer was already cleared\n");
+      printf("Not invoking single dll finalizer because the pointer was already cleared\n");
     }
     R_ClearExternalPtr(obj);
-    RnimblePtrs.erase(obj);
-    printf("number of remaining nimble pointers in this dll = %d\n", (int) RnimblePtrs.size());
-    if(RnimblePtrs.empty() && DllPtr) {
+    RnimblePtrs_shared.erase(obj);
+    printf("number of remaining global nimble pointers = %d\n", (int) RnimblePtrs_shared.size());
+    if(RnimblePtrs_shared.empty()) {
         // arrange to dyn.unload()
-        printf("no more nimble pointers in the DLL %p\n", DllPtr);
-        Rf_PrintValue(DllPtr);
+        printf("no more global nimble pointers.\n");
+	//        Rf_PrintValue(DllPtr);
         // Interesting to see if we dyn.unload() from a routine in that DLL what happens.
-	//        UnloadNimbleDLL(DllPtr);
+        //UnloadNimbleDLL(DllPtr);
     }
 }
 
