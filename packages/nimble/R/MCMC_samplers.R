@@ -1012,6 +1012,7 @@ sampler_RW_PF_block <- nimbleFunction(
 ##########################################
 ## Sampler for multinomial distribution ##
 ##########################################
+
 RW_multinomial <- nimbleFunction( 
     ## All sampler functions must contain 'sampler_BASE'
     contains = sampler_BASE,
